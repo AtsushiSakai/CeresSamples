@@ -13,5 +13,5 @@ include_directories(/usr/include/eigen3)
 find_package(Ceres REQUIRED)
 include_directories(${CERESS_INCLUDE_DIRS})
 
-add_executable(SimpleOptimizationSample main.cpp)
-target_link_libraries(SimpleOptimizationSample ${CERES_LIBRARIES})
+add_executable(PowellOptimization main.cpp)
+target_link_libraries(PowellOptimization ${CERES_LIBRARIES})

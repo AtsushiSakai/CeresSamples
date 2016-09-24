@@ -30,7 +30,7 @@ int main(int argc, char** argv){
   google::InitGoogleLogging(argv[0]);
 
   //最適化問題を解く変数と初期値の設定
-  double initial_x=5.0;
+  double initial_x=15.0;
   double x=initial_x;
 
   //最適化問題を解く用のオブジェクトの生成
