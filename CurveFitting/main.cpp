@@ -255,17 +255,14 @@ int main(int argc, char** argv){
   Problem problem;
 
   for(int i=0; i<x.size(); i++){
-    for(int ii=0; ii<y.size(); ii++){
       CostFunction* cost_function=new AutoDiffCostFunction<ExponentialResidual, 1, 1, 1>(
           new ExponentialResidual(x[i],y[i]));
 
       problem.AddResidualBlock(cost_function, NULL, &m, &c);
-    }
   }
 
   //最適化の実行
   Solver::Options options;//最適化のオプション設定用構造体
-  // options.max_num_iterations=10;
   options.linear_solver_type=ceres::DENSE_QR;
   options.minimizer_progress_to_stdout=true;//最適化の結果を標準出力に表示する。
   Solver::Summary summary;//最適化の結果を格納するよう構造体
