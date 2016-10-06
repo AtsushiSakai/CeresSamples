@@ -143,7 +143,7 @@ int main(int argc, char** argv){
     // odometry constraint
     problem.AddResidualBlock(
         OdometryConstraint::Create(dl[i],dtheta[i],dl_n[i],dtheta_n[i]),
-        NULL,//損失関数
+        NULL,
         &(x[i]),
         &(y[i]),
         &(yaw[i]),
@@ -153,7 +153,7 @@ int main(int argc, char** argv){
         );
 
     //gps constraint
-    if(fabs(zx[i])>=0.001){
+    if(fabs(zn[i])>=0.001){
       problem.AddResidualBlock(
         GPSConstraint::Create(zx[i],zy[i],zn[i]),
         NULL,
@@ -163,12 +163,12 @@ int main(int argc, char** argv){
     }
   }
 
-  //最適化の実行
-  Solver::Options options;//最適化のオプション設定用構造体
+  //Optimization
+  Solver::Options options;
   options.linear_solver_type=ceres::DENSE_QR;
-  options.minimizer_progress_to_stdout=true;//最適化の結果を標準出力に表示する。
-  Solver::Summary summary;//最適化の結果を格納するよう構造体
-  Solve(options,&problem,&summary);//最適化の実行
+  options.minimizer_progress_to_stdout=true;
+  Solver::Summary summary;
+  Solve(options,&problem,&summary);
 
   plt::named_plot("Truth",tx,ty, "-b");
   plt::named_plot("init",ix,iy, "-g");
