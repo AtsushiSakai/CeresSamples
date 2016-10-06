@@ -51,6 +51,8 @@ odo_y   = []
 odo_yaw = []
 z_x   = []
 z_y   = []
+u_v   =[]
+u_omega   =[]
 
 plt.grid(True)
 plt.axis("equal")
@@ -77,6 +79,10 @@ while time<SimTime:
     odo_yaw.append(x[2])
     z_x.append(z[0])
     z_y.append(z[1])
+    u_v.append(un[0])
+    u_omega.append(un[1])
+
+
 
 plt.plot(true_x,true_y,"-b",label="True");
 plt.plot(odo_x,odo_y,"-r",label="odometry");
@@ -95,6 +101,10 @@ df["odo_y"]    = odo_y
 df["odo_yaw"]  = odo_yaw
 df["z_x"]    = z_x
 df["z_y"]    = z_y
+df["u_v"]    = u_v
+df["u_omega"]    = u_omega
+
+
 
 df.to_csv("data.csv")
 
