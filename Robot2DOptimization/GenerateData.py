@@ -1,6 +1,9 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
-# author:Atsushi Sakai
+u"""
+Data generator for 2D Trajectory optimization
+auther: Atsushi Sakai
+"""
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -20,39 +23,41 @@ def AddInputNoise(u,Q):
     return un
 
 def Observation(xTrue,R,time,zdt):
-    z=[0,0]
+    z=[0,0,0]
 
     if abs(time%zdt) > 0.1:
         return z
 
-    z[0]=xTrue[0]
-    z[1]=xTrue[1]
+    z[0]=xTrue[0]+np.random.randn()*R[0]
+    z[1]=xTrue[1]+np.random.randn()*R[0]
+    z[2]=R[0]
 
     return z
-
-    
 
 xTrue=[0,0,0]# state x,y,yaw
 x=[0,0,0]# state x,y,yaw
 u=[1.0,0.1]# input v[m/s],omega[rad/s]
 Q=[0.5,0.1] #input noise
-R=[0.1,0.1] #input noise
+R=[0.1] #observation noise
 z=[0,0]# state x,y,yaw
 dt=0.1  #[s]
 zdt=4.0  #[s]
 time=0.0
 SimTime=50.0
 
-true_x=[]
-true_y=[]
-true_yaw=[]
-odo_x   = []
-odo_y   = []
-odo_yaw = []
-z_x   = []
-z_y   = []
-u_v   =[]
-u_omega   =[]
+true_x     = []
+true_y     = []
+true_yaw   = []
+odo_x      = []
+odo_y      = []
+odo_yaw    = []
+z_x        = []
+z_y        = []
+z_n        = []
+u_dl       = []
+u_dtheta   = []
+u_dl_n     = []
+u_dtheta_n = []
 
 plt.grid(True)
 plt.axis("equal")
@@ -63,14 +68,10 @@ while time<SimTime:
     xTrue=MotionModel(xTrue,u,dt)
     un=AddInputNoise(u,Q)
     x=MotionModel(x,un,dt)
-
     z=Observation(xTrue,R,time,zdt)
 
-    #Show graph
-    #  plt.plot(xTrue[0],xTrue[1],".b");
-    #  plt.plot(x[0],x[1],".r");
-    #  plt.pause(0.001)
 
+    # data store
     true_x.append(xTrue[0])
     true_y.append(xTrue[1])
     true_yaw.append(xTrue[2])
@@ -79,32 +80,33 @@ while time<SimTime:
     odo_yaw.append(x[2])
     z_x.append(z[0])
     z_y.append(z[1])
-    u_v.append(un[0])
-    u_omega.append(un[1])
+    z_n.append(z[2])
+    u_dl.append(un[0]*dt)
+    u_dtheta.append(un[1]*dt)
+    u_dl_n.append(Q[0]*dt)
+    u_dtheta_n.append(Q[1]*dt)
 
-
-
+# show figure
 plt.plot(true_x,true_y,"-b",label="True");
 plt.plot(odo_x,odo_y,"-r",label="odometry");
 plt.plot(z_x,z_y,"xg",label="GPS");
 plt.legend()
 plt.show()
 
-
-#csv
+# save csv
 df=pd.DataFrame()
-df["true_x"]   = true_x
-df["true_y"]   = true_y
-df["true_yaw"] = true_yaw
-df["odo_x"]    = odo_x
-df["odo_y"]    = odo_y
-df["odo_yaw"]  = odo_yaw
-df["z_x"]    = z_x
-df["z_y"]    = z_y
-df["u_v"]    = u_v
-df["u_omega"]    = u_omega
-
-
-
+df["true_x"]     = true_x
+df["true_y"]     = true_y
+df["true_yaw"]   = true_yaw
+df["odo_x"]      = odo_x
+df["odo_y"]      = odo_y
+df["odo_yaw"]    = odo_yaw
+df["z_x"]        = z_x
+df["z_y"]        = z_y
+df["u_dl"]       = u_dl
+df["u_dtheta"]   = u_dtheta
+df["z_n"]        = z_n
+df["u_dl_n"]     = u_dl_n
+df["u_dtheta_n"] = u_dtheta_n
 df.to_csv("data.csv")
 

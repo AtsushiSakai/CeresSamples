@@ -2,7 +2,6 @@
  *  @brief Robot 2D trajectory optimization
  *
  *  @author Atsushi Sakai
- *
  **/
 
 #include "ceres/ceres.h"
@@ -24,36 +23,37 @@ using ceres::Solver;
 using ceres::Solve;
 
 struct GPSConstraint{
-  GPSConstraint(double x, double y)
-    :x_(x), y_(y) {}
+  GPSConstraint(double x, double y, double n)
+    :x_(x), y_(y), n_(n) {}
 
   template <typename T>
     bool operator()(
         const T* const x,
         const T* const y,
         T* residual) const {
-      residual[0]=x[0]-T(x_);
-      residual[1]=y[0]-T(y_);
+      residual[0]=(x[0]-T(x_))/n_;
+      residual[1]=(y[0]-T(y_))/n_;
       return true;
     }
 
   static ceres::CostFunction* Create(
       const double gx,
-      const double gy
+      const double gy,
+      const double gn
       ){
     return (new ceres::AutoDiffCostFunction<GPSConstraint,2,1,1>(
-          new GPSConstraint(gx,gy)));
+          new GPSConstraint(gx,gy,gn)));
   }
 
   private:
-    const double x_;
-    const double y_;
+    const double x_;//gps position x
+    const double y_;//gps position y
+    const double n_;//gps xy accuracy
 };
 
 struct OdometryConstraint{
-  OdometryConstraint(double v, double omega)
-    :v_(v), omega_(omega) {}
-
+  OdometryConstraint(double dl, double dtheta, double dl_n, double dtheta_n)
+    :dl_(dl), dtheta_(dtheta), dl_n_(dl_n), dtheta_n_(dtheta_n) {}
 
   template <typename T>
     bool operator()(
@@ -64,24 +64,27 @@ struct OdometryConstraint{
         const T* const ny,
         const T* const nyaw,
         T* residual) const {
-      residual[0]=cx[0]-(nx[0]+v_*0.1*cos(nyaw[0]));
-      residual[1]=cy[0]-(ny[0]+v_*0.1*sin(nyaw[0]));
-      residual[2]=cyaw[0]-(nyaw[0]+0.1*omega_);
+      residual[0]=(nx[0]-(cx[0]+dl_*cos(cyaw[0])))/dl_n_;
+      residual[1]=(ny[0]-(cy[0]+dl_*sin(cyaw[0])))/dl_n_;
+      residual[2]=(nyaw[0]-(cyaw[0]+dtheta_))/dtheta_n_;
       return true;
     }
 
   static ceres::CostFunction* Create(
-      const double v,
-      const double omega
+      const double dl,
+      const double dtheta,
+      const double dl_n,
+      const double dtheta_n
       ){
     return (new ceres::AutoDiffCostFunction<OdometryConstraint,3,1,1,1,1,1,1>(
-          new OdometryConstraint(v,omega)));
+          new OdometryConstraint(dl,dtheta,dl_n, dtheta_n)));
   }
 
   private:
-    //Observations for a sample
-    const double v_;
-    const double omega_;
+    const double dl_;//move distance
+    const double dtheta_;//change angle
+    const double dl_n_;// move distance accuracy
+    const double dtheta_n_;// change angle accuracy
 };
 
 int main(int argc, char** argv){
@@ -95,40 +98,34 @@ int main(int argc, char** argv){
   vector<double> tx;
   vector<double> ty;
   vector<double> tyaw;
+  //parameter
+  vector<double> x;
+  vector<double> y;
+  vector<double> yaw;
+  //observation
+  vector<double> zx;
+  vector<double> zy;
+  vector<double> zn;
+  //input
+  vector<double> dl;
+  vector<double> dtheta;
+  vector<double> dl_n;
+  vector<double> dtheta_n;
 
   for(int i=0;i<csvparser.ncol_;i++){
     tx.push_back(csvparser.data_[i][1]);
     ty.push_back(csvparser.data_[i][2]);
     tyaw.push_back(csvparser.data_[i][3]);
-  }
-
-  //parameter
-  vector<double> x;
-  vector<double> y;
-  vector<double> yaw;
-
-  for(int i=0;i<csvparser.ncol_;i++){
     x.push_back(csvparser.data_[i][4]);
     y.push_back(csvparser.data_[i][5]);
     yaw.push_back(csvparser.data_[i][6]);
-  }
-
-  //parameter
-  vector<double> zx;
-  vector<double> zy;
-
-  for(int i=0;i<csvparser.ncol_;i++){
     zx.push_back(csvparser.data_[i][7]);
     zy.push_back(csvparser.data_[i][8]);
-  }
-
-  //input
-  vector<double> v;
-  vector<double> omega;
-
-  for(int i=0;i<csvparser.ncol_;i++){
-    v.push_back(csvparser.data_[i][9]);
-    omega.push_back(csvparser.data_[i][10]);
+    dl.push_back(csvparser.data_[i][9]);
+    dtheta.push_back(csvparser.data_[i][10]);
+    zn.push_back(csvparser.data_[i][11]);
+    dl_n.push_back(csvparser.data_[i][12]);
+    dtheta_n.push_back(csvparser.data_[i][13]);
   }
 
   //init param
@@ -145,10 +142,8 @@ int main(int argc, char** argv){
   for(int i=0;i<csvparser.ncol_-1;i++){
     // odometry constraint
     problem.AddResidualBlock(
-        OdometryConstraint::Create(v[i],omega[i]),
+        OdometryConstraint::Create(dl[i],dtheta[i],dl_n[i],dtheta_n[i]),
         NULL,//損失関数
-        // currentState,//パラメータ
-        // nextState//パラメータ
         &(x[i]),
         &(y[i]),
         &(yaw[i]),
@@ -159,16 +154,15 @@ int main(int argc, char** argv){
 
     //gps constraint
     if(fabs(zx[i])>=0.001){
-      // cout<<zx[i]<<","<<zy[i]<<endl;
-
       problem.AddResidualBlock(
-        GPSConstraint::Create(zx[i],zy[i]),
+        GPSConstraint::Create(zx[i],zy[i],zn[i]),
         NULL,
         &x[i],
         &y[i]
         );
     }
   }
+
   //最適化の実行
   Solver::Options options;//最適化のオプション設定用構造体
   options.linear_solver_type=ceres::DENSE_QR;
@@ -176,14 +170,10 @@ int main(int argc, char** argv){
   Solver::Summary summary;//最適化の結果を格納するよう構造体
   Solve(options,&problem,&summary);//最適化の実行
 
-  for(int i=0;i<x.size();i++){
-    cout<<x[i]<<","<<y[i]<<","<<yaw[i]<<endl;
-  }
-
   plt::named_plot("Truth",tx,ty, "-b");
   plt::named_plot("init",ix,iy, "-g");
   plt::named_plot("Estmated",x, y, "-r");
-  plt::named_plot("GPS",zx, zy, "xk");
+  plt::named_plot("GPS", zx, zy, "xk");
   plt::legend();
   plt::axis("equal");
   plt::grid(true);
