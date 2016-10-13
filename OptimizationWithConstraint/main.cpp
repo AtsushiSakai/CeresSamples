@@ -44,7 +44,7 @@ int main(int argc, char** argv){
   problem.AddResidualBlock(cost_function,NULL,&x);
 
   //制約設定
-  roblem.SetParameterLowerBound(&x,0,12.0);
+  problem.SetParameterLowerBound(&x,0,12.0);
   problem.SetParameterUpperBound(&x,0,14.0);
 
   //最適化の実行
